@@ -8,3 +8,5 @@ such as codec and length of the voice session.
 Also supports sharing the debugging sessions with other people without having
 to give them the password for the Mumble server.
 
+![UI](img/mumble-debugger.png)
+
