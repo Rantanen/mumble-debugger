@@ -1,0 +1,353 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>Mumble protocol debugger</title>
+<link rel="stylesheet" href="style.css">
+<script src="//ajax.googleapis.com/ajax/libs/jquery/2.0.0/jquery.min.js"></script>
+<script src="/socket.io/socket.io.js"></script>
+<script>
+var socket = io.connect();
+var isConnected = false;
+
+socket.once( 'connect', function () {
+    var idMatch = /[\?&]session=(\d+)/.exec( location.search );
+    if( idMatch ) {
+        attach( idMatch[1] );
+    } else {
+        $('#main-connecting').hide();
+        $('#main-debugger').show();
+        $('#main-lost').hide();
+        $('#debug-connect').show();
+    }
+
+    socket.on('error', function ( error ) {
+        if( !isConnected ) {
+            $('.status-msg').text( error );
+            $('.status-msg').css({ color: '#a00' });
+            $('#main-connecting').hide();
+            $('#main-debugger').show();
+            $('#main-lost').hide();
+            $('#debug-connect').show();
+            $('#debug-view').hide();
+        } else {
+            addLogMessage( 'ERROR: ' + error ).css({ color: '#a00' });
+        }
+    })
+});
+
+socket.once( 'disconnect', function () {
+    $('#main-connecting').hide();
+    $('#main-debugger').hide();
+    $('#main-lost').show();
+});
+
+function connect() {
+
+    $('#debug-connect').hide();
+
+    var url = $('#mumble-url').val();
+    socket.emit( 'url', url );
+    socket.once( 'mumble-connected', mumbleConnected );
+}
+
+function attach( key ) {
+
+    $('#main-connecting').hide();
+    $('#main-debugger').show();
+    $('#main-lost').hide();
+    $('#debug-connect').hide();
+
+    var key = key || $('#mumble-key').val();
+    socket.emit( 'attach', key, mumbleConnected );
+}
+
+var autoscroll;
+function mumbleConnected( data ) {
+    console.log( 'Connected to Mumble' );
+    isConnected = true;
+
+    var sessions = {};
+
+    $('#debug-view').show();
+
+    var url = location.protocol + '//' + location.host + location.pathname + "?session=" + data.key;
+    $('#key').attr( 'href', url );
+    $('#key').text( url );
+
+    console.log( data.users );
+
+    autoscroll = $('#log-autoscroll').is(':checked');
+    $('#log-autoscroll').on('change', function () {
+        autoscroll = $(this).is(':checked');
+    });
+
+    $('#log-rawtext').on('change', function () {
+        var rawtext = $(this).is(':checked');
+        $('#debug-log textarea.entries').toggle( rawtext );
+        $('#debug-log div.entries').toggle( !rawtext );
+        console.log( rawtext );
+    });
+    $('#debug-log div.entries').show();
+    $('#debug-log textarea.entries').hide();
+
+    var ensureUser = function( session, name ) {
+        if( !sessions[ session ] ) {
+            var u = {
+                session: session,
+                row: $('<tr class="user">'),
+                name: $('<td class="td-name">').text(name),
+                voice: $('<td class="td-voice">').text('-')
+            };
+
+            var users = $('#users tbody');
+            u.row.append( u.name, u.voice );
+            users.append( u.row );
+            sessions[ session ] = u;
+        }
+
+        return sessions[ session ];
+    }
+
+    var fields = {};
+    var headers = [];
+    $('#state tbody').empty();
+    var updateState = function( state ) {
+        console.log( 'Updating stat' );
+        console.log( state );
+        for( var s in state ) {
+            var field = s;
+            var value = state[s];
+
+            if( !fields[field] ) {
+                console.log( 'Added : ' + field );
+                var tdField = $('<td>').text( field );
+                var tdValue = $('<td>');
+                var tr = $('<tr>').append(tdField, tdValue);
+                fields[ field ] = { field: tdField, value: tdValue, row: tr };
+
+                headers.push( field );
+                headers.sort();
+                var index = headers.indexOf( field );
+
+                if( index === 0 ) {
+                    $('#state tbody').prepend( tr );
+                } else {
+                    $('#state tbody tr').eq( index - 1 ).after( tr );
+                }
+            }
+
+            var row = fields[field];
+            row.value.text( value );
+        }
+
+        if( state['(Disconnected)'] ) {
+            $('#disconnect').prop( 'disabled', true );
+        }
+    }
+    updateState( data.state );
+
+    for( var u in data.users ) {
+        ensureUser( data.users[u].session, data.users[u].name );
+    }
+
+    $('#disconnect').on('click', function () {
+        console.log('should disconnect now!');
+        socket.emit('disconnect-mumble');
+    });
+
+    socket.on( 'user-update', function ( user ) {
+        console.log( 'user-update' );
+        var u = ensureUser( user.session, user.name );
+        u.name.text( user.name );
+        console.log( user );
+    });
+
+    socket.on( 'user-remove', function () {
+    });
+
+    socket.on( 'state-update', function ( state ) {
+        console.log( 'state-update' );
+        updateState( state );
+    });
+
+    socket.on( 'mumble-disconnected', function ( evt ) {
+        console.log( 'Disconnected from Mumble' );
+        $('#disconnect').prop( 'disabled', true );
+        addLogMessage( 'Disconneted' );
+    });
+
+    socket.on( 'protocol-in', function ( evt ) {
+        var type = evt.type;
+        console.log( 'protocol-in: ' + type );
+        addLogMessage( 'Received: ' + type, evt.message );
+    });
+
+    socket.on( 'protocol-out', function ( evt ) {
+        var type = evt.type;
+        console.log( 'protocol-out: ' + type );
+        addLogMessage( 'Sent: ' + type, evt.message );
+    });
+
+    socket.on( 'voice-start', function ( evt ) {
+        console.log( 'Voice start: ' + evt.name );
+
+        var user = ensureUser( evt.session, evt.name );
+        user.voice.text( evt.codecName );
+        user.voice.css({ color: 'green' });
+
+        addLogMessage( 'Voice start, ' + evt.name + ' (' + evt.session + ')', evt );
+    });
+
+    socket.on( 'voice-end', function ( evt ) {
+        console.log( 'Voice end: ' + evt.name );
+
+        var user = ensureUser( evt.session, evt.name );
+        user.voice.text( '-' );
+        user.voice.css({ color: '' });
+        addLogMessage( 'Voice end, ' + evt.name + ' (' + evt.session + ')', evt );
+    });
+
+    socket.on( 'warning', function () {
+    });
+};
+
+function addLogMessage( title, data ) {
+    var time = new Date();
+    var seconds = time.getUTCSeconds();
+    if( seconds < 10 ) { seconds = "0" + seconds; }
+    var timestamp = time.getUTCHours() + ':' + time.getUTCMinutes() + ':' + seconds;
+
+    var button = $('<button class="expand">Show</button>');
+
+    var header = $('<div class="log-entry-header">').append(
+        $('<span class="timestamp">').text( '> ' + timestamp ),
+        $('<span class="separator">').text( ' - ' ),
+        $('<span class="type">').text( title )
+    )
+
+    var msg = $('<div class="log-entry">').append( header );
+
+    if( data ) {
+        var content = JSON.stringify( data, null, '  ' );
+        var data = $('<div class="log-entry-data">').text( content );
+
+        button.on( 'click', function() {
+            data.toggle();
+            button.text( data.is(':visible') ? "Hide" : "Show" );
+        });
+
+        header.append( button );
+        msg.append( data );
+    }
+
+    $('#debug-log div.entries').append( msg );
+    $('#debug-log textarea.entries').append( msg.text() + '\n' );
+
+    $('#debug-log .entries').each(function() {
+        var $e = $(this);
+        $e.scrollTop( $e.prop('scrollHeight') );
+    });
+
+    return header;
+}
+</script>
+</head>
+<body>
+<div id="header">
+    <h1>Mumble protocol debugger</h1>
+</div>
+<div id="main-connecting" class="view">
+    <h2>... connecting to debugger</h2>
+</div>
+<div id="main-lost" class="hidden view">
+    <h2 class="error hidden">Connection lost</h2>
+</div>
+<div id="main-debugger" class="hidden view">
+    <div id="debug-connect">
+        <p class="status-msg">
+            Connection with the debugging server has been established.
+        </p>
+        <form action="javascript:connect()">
+            <h2>Starting a new debug session</h2>
+            <p>
+                Please enter the Mumble server information.
+            </p>
+            <div>
+                <label>Mumble URL: <input type="text" id="mumble-url"></label>
+                <input type="submit" value="Connect">
+                <p class="example">mumble://username:password@host:port/Channel/Path<p>
+                <p> <i>
+                    You can right click a channel choose <b>Copy URL</b> in the
+                    official Mumble client to get an URL for that channel.
+                </i></p>
+            </div>
+        </form>
+        <form action="javascript:attach()">
+            <h2>Attaching to an existing session</h2>
+            <p>
+                If you received a debug key for an existing session, input it below.
+            </p>
+            <div>
+                <label>Debug key: <input type="text" id="mumble-key"></label>
+                <input type="submit" value="Attach">
+                <p>
+                    The debug key lets you monitor a debug session without
+                    requiring the password to the server.
+                </p>
+            </div>
+            <div>
+            </div>
+        </form>
+    </div>
+    <div id="debug-view" class="hidden">
+        <div class="container" id="users-container">
+            <h2>Users</h2>
+            <div class="containee">
+                <table id="users">
+                    <thead>
+                        <tr>
+                            <th class="td-name">Name</th>
+                            <th class="td-voice">Voice</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+        <div class="container" id="state-container">
+            <h2>Server Info</h2>
+            <div class="containee">
+                <table id="state">
+                    <thead>
+                        <tr>
+                            <th class="td-field">Field</th>
+                            <th class="td-value">Value</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+        <button id="disconnect">Disconnect</button>
+        <div class="container" id="log-container">
+            <h2>Message log</h2>
+            <div class="containee" id="debug-log">
+                <div class="entries"></div>
+                <textarea class="entries"></textarea>
+                <div class="toolbar">
+                    <label><input type="checkbox" id="log-autoscroll" checked> Autoscroll</label>
+                    <label><input type="checkbox" id="log-rawtext"> Raw text (for copy paste)</label>
+                </div>
+            </div>
+        </div>
+        <div id="debug-key">
+            Share this session:<br>
+            <a id="key"></a>
+        </div>
+    </div>
+</div>
+</body>
+</html>
+

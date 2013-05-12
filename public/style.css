@@ -1,0 +1,153 @@
+
+body {
+    width: 100%;
+    margin: 0;
+    font-family: "Segoe UI", "Arial", "Sans Serif";
+}
+
+#header {
+    margin: 1em;
+}
+
+.hidden {
+    display: none;
+}
+
+.view {
+    position: absolute;
+    top: 5em;
+    left: 0.5em;
+    bottom: 0.5em;
+    right: 0.5em;
+
+    background: #ccc;
+    margin: 1em;
+}
+
+.status-msg {
+    font-weight: bold;
+}
+
+.container > h2 {
+}
+
+.container > .containee {
+    position: absolute;
+    top: 3.5em;
+    right: 0;
+    bottom: 0;
+    left: 0;
+    overflow-x: hidden;
+    overflow-y: auto;
+
+    background: #333;
+    margin: 0;
+    padding: 1em;
+}
+
+#debug-connect {
+    padding: 1em;
+}
+
+#debug-connect input[type="text"] {
+    width: 40em;
+    position: absolute;
+    left: 10em;
+}
+
+#debug-connect input[type="submit"] {
+    position: absolute;
+    left: 51em;
+}
+
+#debug-connect p.example {
+    position: relative;
+    margin-top: 0.4em;
+    left: 8em;
+}
+
+#users-container {
+    position: absolute;
+    top: 1em;
+    left: 1em;
+    bottom: 32em;
+    width: 30em;
+}
+
+#state-container {
+    position: absolute;
+    height: 23em;
+    left: 1em;
+    bottom: 8em;
+    width: 30em;
+}
+
+#users, #state {
+    table-layout: fixed;
+    background: white;
+    width: 100%;
+    border-collapse: collapse;
+}
+
+#users th, #state th {
+    text-align: left;
+}
+
+#users .td-voice {
+    width: 8em;
+}
+
+#users td, #state td {
+    border-top: 1px solid black;
+    border-bottom: 1px solid black;
+}
+
+#log-container {
+    position: absolute;
+    top: 1em;
+    right: 1em;
+    bottom: 1em;
+    left: 33em;
+}
+
+#debug-log .entries {
+    font-family: "Courier New";
+    position: absolute;
+    top: 1em;
+    right: 1em;
+    bottom: 3em;
+    left: 1em;
+
+    white-space: pre;
+    overflow: scroll;
+
+    background: white;
+}
+
+#debug-log .toolbar {
+    position: absolute;
+    right: 1em;
+    bottom: 0.8em;
+    left: 1em;
+    height: 2em;
+
+    color: white;
+}
+
+#debug-log .log-entry-data {
+    display: none;
+}
+
+#disconnect {
+    position: absolute;
+    top: 2em;
+    right: 1em;
+    z-index: 100;
+}
+
+#debug-key {
+    position: absolute;
+    left: 1em;
+    bottom: 1em;
+    font-size: 1.2em;
+}

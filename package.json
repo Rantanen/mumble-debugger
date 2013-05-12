@@ -1,0 +1,23 @@
+{
+  "name": "Mumble protocol debugger",
+  "description": "Debugging client for Mumble",
+  "version": "0.0.1",
+  "author": "Mikko Rantanen <jubjub@jubjubnest.net>",
+  "homepage": "https://github.com/Rantanen/mumble-debug",
+  "bugs": "https://github.com/Rantanen/mumble-debug/issues",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "http://github.com/Rantanen/mumble-debug.git"
+  },
+  "private": true,
+  "scripts": {
+    "start": "node app.js"
+  },
+  "dependencies": {
+    "express": "3.2.3",
+    "jade": "*",
+    "socket.io": "~0.9.14",
+    "mumble": "*"
+  }
+}
