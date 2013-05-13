@@ -1,1 +1,4 @@
 .*.swp
+certificate.cert
+certificate.key
+/node_modules
