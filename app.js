@@ -1,4 +1,6 @@
 
+"use strict";
+
 /**
  * Module dependencies.
  */
@@ -11,7 +13,7 @@ var Session = require('./lib/Session');
 var ssl = require('./lib/ssl');
 
 var app = express();
-var server = http.createServer(app)
+var server = http.createServer(app);
 var io = require('socket.io').listen( server );
 
 // all environments
@@ -26,7 +28,7 @@ app.use(app.router);
 app.use(express.static(path.join(__dirname, 'public')));
 
 // development only
-if ('development' == app.get('env')) {
+if ('development' === app.get('env')) {
   app.use(express.errorHandler());
 }
 
